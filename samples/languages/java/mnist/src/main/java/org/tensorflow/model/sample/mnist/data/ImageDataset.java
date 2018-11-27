@@ -1,4 +1,4 @@
-package mnist.data;
+package org.tensorflow.model.sample.mnist.data;
 
 import java.io.DataInputStream;
 import java.io.IOException;

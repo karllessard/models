@@ -1,4 +1,4 @@
-package mnist.data;
+package org.tensorflow.model.sample.mnist.data;
 
 public class ImageBatch {
   
