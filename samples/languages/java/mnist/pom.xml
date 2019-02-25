@@ -11,11 +11,14 @@
 		<maven.compiler.target>1.8</maven.compiler.target>
 	</properties>
 	<dependencies>
-		<dependency>
+		<!-- TensorFlow releases still does not include the code required to run this examples,
+		     until then we need to manually link your build to the latest snapshot  
+		-->
+		<!-- dependency>
 			<groupId>org.tensorflow</groupId>
 			<artifactId>tensorflow</artifactId>
-			<version>1.11.0</version>
-		</dependency>
+			<version>1.13.0-rc2</version>
+		</dependency -->
 	</dependencies>
 	<build>
 		<plugins>
