@@ -8,7 +8,6 @@ import org.tensorflow.Operand;
 import org.tensorflow.Session;
 import org.tensorflow.Shape;
 import org.tensorflow.Tensor;
-import org.tensorflow.Tensors;
 import org.tensorflow.model.sample.mnist.data.ImageBatch;
 import org.tensorflow.model.sample.mnist.data.ImageDataset;
 import org.tensorflow.op.Ops;
@@ -70,8 +69,8 @@ public class SimpleMnist implements Runnable {
       // Train the graph
       for (Iterator<ImageBatch> batchIter = dataset.trainingBatchIterator(TRAINING_BATCH_SIZE); batchIter.hasNext();) {
         ImageBatch batch = batchIter.next();
-        try (Tensor<Float> batchImages = Tensors.create(batch.images());
-             Tensor<Float> batchLabels = Tensors.create(batch.labels())) {
+        try (Tensor<Float> batchImages = Tensor.create(batch.shape(784), batch.images());
+             Tensor<Float> batchLabels = Tensor.create(batch.shape(10), batch.labels())) {
           session.runner()
               .addTarget(weightGradientDescent)
               .addTarget(biasGradientDescent)
@@ -83,8 +82,8 @@ public class SimpleMnist implements Runnable {
 
       // Test the graph
       ImageBatch testBatch = dataset.testBatch();
-      try (Tensor<Float> testImages = Tensors.create(testBatch.images());
-           Tensor<Float> testLabels = Tensors.create(testBatch.labels());
+      try (Tensor<Float> testImages = Tensor.create(testBatch.shape(784), testBatch.images());
+           Tensor<Float> testLabels = Tensor.create(testBatch.shape(10), testBatch.labels());
            Tensor<?> value = session.runner()
               .fetch(accuracy)
               .feed(images.asOutput(), testImages)

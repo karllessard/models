@@ -37,7 +37,10 @@ public class MnistWithSummaries implements Runnable {
     ImageDataset dataset = ImageDataset.create(VALIDATION_SIZE);
     try (Graph graph = new Graph()) {
       MnistWithSummaries mnist = new MnistWithSummaries(graph, dataset);
+      long start = System.currentTimeMillis();
       mnist.run();
+      long end = System.currentTimeMillis();
+      System.out.println("Took " + (((float)(end - start))/ 1000.0f) + " sec to execute");
     }
   }
 
@@ -90,7 +93,6 @@ public class MnistWithSummaries implements Runnable {
 
       long stepNo = 1L;
       Iterator<ImageBatch> trainBatches = dataset.trainingBatchIterator(TRAINING_BATCH_SIZE);
-      ImageBatch testBatch = dataset.testBatch();
 
       while (trainBatches.hasNext()) {
         Session.Runner training = session.runner()
@@ -98,8 +100,9 @@ public class MnistWithSummaries implements Runnable {
 
         if (stepNo % 10 == 0) {
           // Test graph
-          try (Tensor<Float> batchImages = Tensors.create(testBatch.images());
-               Tensor<Float> batchLabels = Tensors.create(testBatch.labels());
+          ImageBatch testBatch = dataset.testBatch();
+          try (Tensor<Float> batchImages = Tensor.create(testBatch.shape(784), testBatch.images());
+               Tensor<Float> batchLabels = Tensor.create(testBatch.shape(10), testBatch.labels());
                Tensor<?> accuracyValue = training
                    .fetch(accuracy)
                    .feed(images, batchImages)
@@ -113,8 +116,8 @@ public class MnistWithSummaries implements Runnable {
           ctx.trainingTargets.forEach(training::addTarget);
           ctx.summaries.forEach(training::addTarget);
           ImageBatch batch = trainBatches.next();
-          try (Tensor<Float> batchImages = Tensors.create(batch.images());
-               Tensor<Float> batchLabels = Tensors.create(batch.labels())) {
+          try (Tensor<Float> batchImages = Tensor.create(batch.shape(784), batch.images());
+               Tensor<Float> batchLabels = Tensor.create(batch.shape(10), batch.labels())) {
              training
                  .feed(images, batchImages)
                  .feed(labels, batchLabels)

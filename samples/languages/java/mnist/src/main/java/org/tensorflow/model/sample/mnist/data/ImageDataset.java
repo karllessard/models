@@ -18,10 +18,11 @@ public class ImageDataset {
 
     @Override
     public ImageBatch next() {
-      int batchEnd = Math.min(batchStart + batchSize, totalSize());
+      int size = Math.min(batchSize, images.length - batchStart);
       ImageBatch batch = new ImageBatch(
-          Arrays.copyOfRange(images, batchStart, batchEnd),
-          Arrays.copyOfRange(labels, batchStart, batchEnd)
+          serializeToBuffer(images, batchStart, size),
+          serializeToBuffer(labels, batchStart, size),
+          size
       );
       batchStart += batchSize;
       return batch;
@@ -77,7 +78,11 @@ public class ImageDataset {
   }
   
   public ImageBatch testBatch() {
-    return new ImageBatch(testImages, testLabels);
+    return new ImageBatch(
+        serializeToBuffer(testImages, 0, testImages.length), 
+        serializeToBuffer(testLabels, 0, testLabels.length),
+        testImages.length
+    );
   }
   
   private static final String TRAIN_IMAGES_ARCHIVE = "train-images-idx3-ubyte.gz";
@@ -155,5 +160,13 @@ public class ImageDataset {
       floats[i] = ((float)(bytes[i] & 0xFF)) / 255.0f;
     }
     return floats;
+  }
+  
+  private static FloatBuffer serializeToBuffer(float[][] src, int start, int length) {
+    FloatBuffer buffer = FloatBuffer.allocate(length * src[0].length);
+    for (int i = start; i < start + length; ++i) {
+      buffer.put(src[i]);
+    }
+    return (FloatBuffer) buffer.rewind();
   }
 }
