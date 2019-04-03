@@ -11,14 +11,19 @@
 		<maven.compiler.target>1.8</maven.compiler.target>
 	</properties>
 	<dependencies>
-		<!-- TensorFlow releases still does not include the code required to run this examples,
+		<!-- TensorFlow releases still does not include the code required to run the mnist examples,
 		     until then we need to manually link your build to the latest snapshot  
 		-->
-		<!-- dependency>
+		<dependency>
 			<groupId>org.tensorflow</groupId>
 			<artifactId>tensorflow</artifactId>
-			<version>1.13.0-rc2</version>
-		</dependency -->
+			<version>1.13.1</version>
+		</dependency>
+		<dependency>
+			<groupId>org.tensorflow</groupId>
+			<artifactId>proto</artifactId>
+			<version>1.13.1</version>
+		</dependency>
 	</dependencies>
 	<build>
 		<plugins>
