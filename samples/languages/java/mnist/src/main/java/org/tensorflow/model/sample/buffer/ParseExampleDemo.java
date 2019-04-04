@@ -10,18 +10,21 @@ import org.tensorflow.Graph;
 import org.tensorflow.Session;
 import org.tensorflow.Shape;
 import org.tensorflow.Tensor;
-import org.tensorflow.Tensors;
 import org.tensorflow.example.BytesList;
 import org.tensorflow.example.Example;
 import org.tensorflow.example.Feature;
 import org.tensorflow.example.Features;
 import org.tensorflow.op.Ops;
+import org.tensorflow.op.core.Empty;
 import org.tensorflow.op.core.ParseExample;
 import org.tensorflow.op.core.Placeholder;
 
 import com.google.protobuf.ByteString;
 
 public class ParseExampleDemo {
+  
+  private static final String FEATURE_A = "featureA";
+  private static final String FEATURE_B = "featureB";
   
   private static Example buildExample() throws Exception {
     Feature featureA = Feature.newBuilder()
@@ -35,41 +38,43 @@ public class ParseExampleDemo {
         .build();
 
     Features features = Features.newBuilder()
-        .putFeature("featureA", featureA)
-        .putFeature("featureB", featureB)
+        .putFeature(FEATURE_A, featureA)
+        .putFeature(FEATURE_B, featureB)
         .build();
     
     return Example.newBuilder().setFeatures(features).build();
   }
+  
+  private static Empty<String> emptyString(Ops tf) {
+    return tf.empty(tf.constant(new int[]{1}), String.class);
+  }
 
   public static void main(String[] args) throws Exception {
-    Example example = buildExample(); 
-    System.out.println("Example is: " + example.toString());
-    ByteBuffer exampleData = Buffers.stringsToBuffer(Collections.singletonList(example.toByteString().toString("UTF-8")));
+    ByteBuffer exampleData = Buffers.stringToBuffer(buildExample().toByteString().toString("UTF-8"));
+    ByteBuffer exampleName = Buffers.stringToBuffer("Example");
 
     try (Graph g = new Graph()) {
       Ops tf = Ops.create(g);
 
-      Placeholder<String> serialized = tf.placeholder(String.class, Placeholder.shape(Shape.make(1)));
+      Placeholder<String> examples = tf.placeholder(String.class, Placeholder.shape(Shape.make(1)));
       Placeholder<String> names = tf.placeholder(String.class, Placeholder.shape(Shape.make(1)));
       
       ParseExample parser = tf.parseExample(
-          serialized, 
-          tf.constant(new byte[][] {"example".getBytes()}),
+          examples, 
+          names,
           Collections.emptyList(), 
-          Arrays.asList(tf.constant("featureA"), tf.constant("featureB")),
-          Arrays.asList(tf.constant(String.class, new long[]{1}, Buffers.stringToBuffer("oops")), 
-                        tf.constant(String.class, new long[]{1}, Buffers.stringToBuffer("oopsies"))),
+          Arrays.asList(tf.constant(FEATURE_A), tf.constant(FEATURE_B)),
+          Arrays.asList(emptyString(tf), emptyString(tf)),
           Collections.emptyList(),
           Arrays.asList(Shape.make(1), Shape.make(1))
       );
       
       try (Session s = new Session(g)) {
-        try (Tensor<String> exampleTensor = Tensor.create(String.class, new long[] {1L}, exampleData);
-            Tensor<String> nameTensor = Tensors.create("")) {
+        try (Tensor<String> exampleTensor = Tensor.create(String.class, new long[]{1}, exampleData);
+            Tensor<String> nameTensor = Tensor.create(String.class, new long[]{1}, exampleName)) {
 
           List<Tensor<?>> featureValues = s.runner()
-            .feed(serialized.asOutput(), exampleTensor)
+            .feed(examples.asOutput(), exampleTensor)
             .feed(names.asOutput(), nameTensor)
             .fetch(parser.denseValues().get(0))
             .fetch(parser.denseValues().get(1))
