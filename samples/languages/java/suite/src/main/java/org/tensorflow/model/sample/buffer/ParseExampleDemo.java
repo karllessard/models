@@ -16,8 +16,8 @@ import org.tensorflow.example.Feature;
 import org.tensorflow.example.Features;
 import org.tensorflow.op.Ops;
 import org.tensorflow.op.core.Empty;
-import org.tensorflow.op.core.ParseExample;
 import org.tensorflow.op.core.Placeholder;
+import org.tensorflow.op.io.ParseExample;
 
 import com.google.protobuf.ByteString;
 
@@ -59,7 +59,7 @@ public class ParseExampleDemo {
       Placeholder<String> examples = tf.placeholder(String.class, Placeholder.shape(Shape.make(1)));
       Placeholder<String> names = tf.placeholder(String.class, Placeholder.shape(Shape.make(1)));
       
-      ParseExample parser = tf.parseExample(
+      ParseExample parser = tf.io.parseExample(
           examples, 
           names,
           Collections.emptyList(), 

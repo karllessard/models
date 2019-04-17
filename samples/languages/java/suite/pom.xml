@@ -1,10 +1,9 @@
 <project>
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>org.tensorflow.model</groupId>
-	<artifactId>sample-mnist</artifactId>
+	<artifactId>sample-suite</artifactId>
 	<version>1.0-SNAPSHOT</version>
 	<properties>
-		<exec.mainClass>Mnist</exec.mainClass>
 		<!-- The sample code requires at least JDK 1.7. -->
 		<!-- The maven compiler plugin defaults to a lower version -->
 		<maven.compiler.source>1.8</maven.compiler.source>
@@ -12,35 +11,18 @@
 	</properties>
 	<dependencies>
 		<!-- TensorFlow releases still does not include the code required to run the mnist examples,
-		     until then we need to manually link your build to the latest snapshot  
+		     until then add manually the libtensorflow.jar and libtensorflow_jni.so/dll of the latest
+		     TF snapshot to your classpath
 		-->
-		<dependency>
+		<!--dependency>
 			<groupId>org.tensorflow</groupId>
 			<artifactId>tensorflow</artifactId>
 			<version>1.13.1</version>
-		</dependency>
+		</dependency-->
 		<dependency>
 			<groupId>org.tensorflow</groupId>
 			<artifactId>proto</artifactId>
 			<version>1.13.1</version>
 		</dependency>
 	</dependencies>
-	<build>
-		<plugins>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-jar-plugin</artifactId>
-				<version>3.1.0</version>
-				<configuration>
-					<archive>
-						<manifest>
-							<addClasspath>true</addClasspath>
-							<classpathPrefix>lib/</classpathPrefix>
-							<mainClass>org.tensorflow.model.sample.mnist.SimpleMnist</mainClass>
-						</manifest>
-					</archive>
-				</configuration>
-			</plugin>
-		</plugins>
-	</build>
 </project>
