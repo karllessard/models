@@ -24,6 +24,7 @@ import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
 
+import org.tensorflow.EagerSession;
 import org.tensorflow.Graph;
 import org.tensorflow.Operand;
 import org.tensorflow.Session;
@@ -73,29 +74,32 @@ public class LabelImage {
   }
 
   private static Tensor<Float> normalizeImage(byte[] imageBytes) {
-    Ops tf = Ops.create();  // Normalize image eagerly, using default session
+    // Normalize image eagerly
+    try (EagerSession session = EagerSession.create()) {
+      Ops tf = Ops.create(session);
 
-    // Some constants specific to the pre-trained model at:
-    // https://storage.googleapis.com/download.tensorflow.org/models/inception5h.zip
-    //
-    // - The model was trained with images scaled to 224x224 pixels.
-    // - The colors, represented as R, G, B in 1-byte each were converted to
-    //   float using (value - Mean)/Scale.
-    final int H = 224;
-    final int W = 224;
-    final float mean = 117f;
-    final float scale = 1f;
-    
-    final Operand<Float> decodedImage = 
-        tf.dtypes.cast(tf.image.decodeJpeg(tf.constant(imageBytes), DecodeJpeg.channels(3L)), Float.class);
+      // Some constants specific to the pre-trained model at:
+      // https://storage.googleapis.com/download.tensorflow.org/models/inception5h.zip
+      //
+      // - The model was trained with images scaled to 224x224 pixels.
+      // - The colors, represented as R, G, B in 1-byte each were converted to
+      //   float using (value - Mean)/Scale.
+      final int H = 224;
+      final int W = 224;
+      final float mean = 117f;
+      final float scale = 1f;
+      
+      final Operand<Float> decodedImage = 
+          tf.dtypes.cast(tf.image.decodeJpeg(tf.constant(imageBytes), DecodeJpeg.channels(3L)), Float.class);
 
-    final Operand<Float> resizedImage =
-        tf.image.resizeBilinear(tf.expandDims(decodedImage, tf.constant(0)), tf.constant(new int[] {H, W}));
-    
-    final Operand<Float> normalizedImage =
-        tf.math.div(tf.math.sub(resizedImage, tf.constant(mean)), tf.constant(scale));
-    
-    return normalizedImage.asTensor();
+      final Operand<Float> resizedImage =
+          tf.image.resizeBilinear(tf.expandDims(decodedImage, tf.constant(0)), tf.constant(new int[] {H, W}));
+      
+      final Operand<Float> normalizedImage =
+          tf.math.div(tf.math.sub(resizedImage, tf.constant(mean)), tf.constant(scale));
+      
+      return normalizedImage.asOutput().tensor();
+    }
   }
 
   private static float[] executeInceptionGraph(byte[] graphDef, Tensor<Float> image) {
