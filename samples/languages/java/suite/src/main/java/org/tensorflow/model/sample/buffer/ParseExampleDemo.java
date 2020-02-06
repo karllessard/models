@@ -8,7 +8,8 @@ import java.util.List;
 
 import org.tensorflow.Graph;
 import org.tensorflow.Session;
-import org.tensorflow.Shape;
+import org.tensorflow.tools.Shape;
+import org.tensorflow.types.TString;
 import org.tensorflow.Tensor;
 import org.tensorflow.example.BytesList;
 import org.tensorflow.example.Example;
@@ -45,8 +46,8 @@ public class ParseExampleDemo {
     return Example.newBuilder().setFeatures(features).build();
   }
   
-  private static Empty<String> emptyString(Ops tf) {
-    return tf.empty(tf.constant(new int[]{1}), String.class);
+  private static Empty<TString> emptyString(Ops tf) {
+    return tf.empty(tf.constant(new int[]{1}), TString.DTYPE);
   }
 
   public static void main(String[] args) throws Exception {
@@ -56,8 +57,8 @@ public class ParseExampleDemo {
     try (Graph g = new Graph()) {
       Ops tf = Ops.create(g);
 
-      Placeholder<String> examples = tf.placeholder(String.class, Placeholder.shape(Shape.make(1)));
-      Placeholder<String> names = tf.placeholder(String.class, Placeholder.shape(Shape.make(1)));
+      Placeholder<TString> examples = tf.placeholder(TString.DTYPE, Placeholder.shape(Shape.make(1)));
+      Placeholder<TString> names = tf.placeholder(TString.DTYPE, Placeholder.shape(Shape.make(1)));
       
       ParseExample parser = tf.io.parseExample(
           examples, 
@@ -70,8 +71,8 @@ public class ParseExampleDemo {
       );
       
       try (Session s = new Session(g)) {
-        try (Tensor<String> exampleTensor = Tensor.create(String.class, new long[]{1}, exampleData);
-            Tensor<String> nameTensor = Tensor.create(String.class, new long[]{1}, exampleName)) {
+        try (Tensor<TString> exampleTensor = Tensor.create(TString.DTYPE, new long[]{1}, exampleData);
+            Tensor<TString> nameTensor = Tensor.create(TString.DTYPE, new long[]{1}, exampleName)) {
 
           List<Tensor<?>> featureValues = s.runner()
             .feed(examples.asOutput(), exampleTensor)

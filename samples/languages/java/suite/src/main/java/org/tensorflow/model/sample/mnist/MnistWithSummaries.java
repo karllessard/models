@@ -10,7 +10,6 @@ import org.tensorflow.Graph;
 import org.tensorflow.Operand;
 import org.tensorflow.Operation;
 import org.tensorflow.Session;
-import org.tensorflow.Shape;
 import org.tensorflow.Tensor;
 import org.tensorflow.Tensors;
 import org.tensorflow.model.sample.mnist.data.ImageBatch;
@@ -29,7 +28,12 @@ import org.tensorflow.op.summary.SummaryWriter;
 import org.tensorflow.op.summary.WriteHistogramSummary;
 import org.tensorflow.op.summary.WriteImageSummary;
 import org.tensorflow.op.summary.WriteScalarSummary;
-import org.tensorflow.types.UInt8;
+import org.tensorflow.types.TFloat32;
+import org.tensorflow.types.TInt32;
+import org.tensorflow.types.TInt64;
+import org.tensorflow.types.TString;
+import org.tensorflow.types.TUInt8;
+import org.tensorflow.tools.Shape;
 
 public class MnistWithSummaries implements Runnable {
 
@@ -52,30 +56,31 @@ public class MnistWithSummaries implements Runnable {
     
     // Create placeholders
     Ops tfIn = tf.withSubScope("input");
-    Placeholder<Float> images = tfIn.placeholder(Float.class, Placeholder.shape(Shape.make(-1, 784)));
-    Placeholder<Float> labels = tfIn.placeholder(Float.class);
-    Placeholder<Long> step = tfIn.placeholder(Long.class, Placeholder.shape(Shape.scalar()));
+    Placeholder<TFloat32> images = tfIn.placeholder(
+        TFloat32.DTYPE, Placeholder.shape(Shape.make(-1, 784)));
+    Placeholder<TFloat32> labels = tfIn.placeholder(TFloat32.DTYPE);
+    Placeholder<TInt64> step = tfIn.placeholder(TInt64.DTYPE, Placeholder.shape(Shape.scalar()));
 
-    Reshape<Float> thumbnails = tfIn.reshape(images, constArray(tfIn, -1, 28, 28, 1));
+    Reshape<TFloat32> thumbnails = tfIn.reshape(images, constArray(tfIn, -1, 28, 28, 1));
     ctx.summaries.add(WriteImageSummary.create(tfIn.scope(),
         ctx.summaryWriter, 
         step, 
         tag(tfIn, "thumbnails"), 
         thumbnails, 
-        tfIn.constant(new byte[] {0, 0, 0}, UInt8.class), 
+        tfIn.constant(new byte[] {0, 0, 0}, TUInt8.DTYPE),
         WriteImageSummary.maxImages(10L)
     ).op());
     
     // Create layers and dropouts
-    Operand<Float> hidden = layer(tf.withSubScope("hidden"), ctx, step, images, 784, 500, NnOps::relu);
-    Operand<Float> output = layer(tf.withSubScope("output"), ctx, step, hidden, 500, 10, NnOps::softmax);
+    Operand<TFloat32> hidden = layer(tf.withSubScope("hidden"), ctx, step, images, 784, 500, NnOps::relu);
+    Operand<TFloat32> output = layer(tf.withSubScope("output"), ctx, step, hidden, 500, 10, NnOps::softmax);
 
     // Compute loss and apply gradient backpropagation
-    Operand<Float> crossEntropy = crossEntropy(tf.withSubScope("cross_entropy"), labels, output);
+    Operand<TFloat32> crossEntropy = crossEntropy(tf.withSubScope("cross_entropy"), labels, output);
     optimize(tf.withSubScope("train"), ctx, crossEntropy);
     
     // Compute accuracy of the predications for this batch
-    Operand<Float> accuracy = computeAccuracy(tf.withSubScope("accuracy"), ctx, step, labels, output);
+    Operand<TFloat32> accuracy = computeAccuracy(tf.withSubScope("accuracy"), ctx, step, labels, output);
     
     try (Session session = new Session(graph)) {
 
@@ -101,8 +106,8 @@ public class MnistWithSummaries implements Runnable {
         if (stepNo % 10 == 0) {
           // Test graph
           ImageBatch testBatch = dataset.testBatch();
-          try (Tensor<Float> batchImages = Tensor.create(testBatch.shape(784), testBatch.images());
-               Tensor<Float> batchLabels = Tensor.create(testBatch.shape(10), testBatch.labels());
+          try (Tensor<TFloat32> batchImages = Tensor.create(testBatch.shape(784), testBatch.images());
+               Tensor<TFloat32> batchLabels = Tensor.create(testBatch.shape(10), testBatch.labels());
                Tensor<?> accuracyValue = training
                    .fetch(accuracy)
                    .feed(images, batchImages)
@@ -116,8 +121,8 @@ public class MnistWithSummaries implements Runnable {
           ctx.trainingTargets.forEach(training::addTarget);
           ctx.summaries.forEach(training::addTarget);
           ImageBatch batch = trainBatches.next();
-          try (Tensor<Float> batchImages = Tensor.create(batch.shape(784), batch.images());
-               Tensor<Float> batchLabels = Tensor.create(batch.shape(10), batch.labels())) {
+          try (Tensor<TFloat32> batchImages = Tensor.create(batch.shape(784), batch.images());
+               Tensor<TFloat32> batchLabels = Tensor.create(batch.shape(10), batch.labels())) {
              training
                  .feed(images, batchImages)
                  .feed(labels, batchLabels)
@@ -139,7 +144,7 @@ public class MnistWithSummaries implements Runnable {
   
   private class Context {
     SummaryWriter summaryWriter;
-    List<Variable<Float>> variables = new ArrayList<>();
+    List<Variable<TFloat32>> variables = new ArrayList<>();
     List<Operand<?>> initTargets = new ArrayList<>();
     List<Operand<?>> trainingTargets = new ArrayList<>();
     List<Operation> summaries = new ArrayList<>();
@@ -153,16 +158,16 @@ public class MnistWithSummaries implements Runnable {
     this.dataset = dataset;
   }
   
-  private Operand<Float> layer(Ops tf,
+  private Operand<TFloat32> layer(Ops tf,
       Context ctx,
-      Operand<Long> step,
-      Operand<Float> input, 
+      Operand<TInt64> step,
+      Operand<TFloat32> input,
       int inputSize, 
       int layerSize, 
-      BiFunction<NnOps, Operand<Float>, Operand<Float>> activation) {
+      BiFunction<NnOps, Operand<TFloat32>, Operand<TFloat32>> activation) {
 
     Ops tfW = tf.withSubScope("weights");
-    Variable<Float> weights = tfW.variable(Shape.make(inputSize, layerSize), Float.class);
+    Variable<TFloat32> weights = tfW.variable(Shape.make(inputSize, layerSize), TFloat32.DTYPE);
     ctx.variables.add(weights);
     ctx.initTargets.add(tfW.assign(weights, tfW.random.parameterizedTruncatedNormal(
         constArray(tfW, inputSize, layerSize), 
@@ -174,13 +179,13 @@ public class MnistWithSummaries implements Runnable {
     summarize(tfW, ctx, step, weights);
 
     Ops tfB = tf.withSubScope("biases");
-    Variable<Float> biases = tfB.variable(Shape.make(layerSize), Float.class);
+    Variable<TFloat32> biases = tfB.variable(Shape.make(layerSize), TFloat32.DTYPE);
     ctx.variables.add(biases);
     ctx.initTargets.add(tfB.assign(biases, tfB.fill(constArray(tfB, layerSize), tfB.constant(0.1f))));
     summarize(tfB, ctx, step, biases);
     
     Ops tfM = tf.withSubScope("Wx_plus_b");
-    Operand<Float> outputs = tfM.math.add(tfM.linalg.matMul(input, weights), biases);
+    Operand<TFloat32> outputs = tfM.math.add(tfM.linalg.matMul(input, weights), biases);
     ctx.summaries.add(WriteHistogramSummary.create(tfM.scope(),
         ctx.summaryWriter,
         step,
@@ -200,9 +205,9 @@ public class MnistWithSummaries implements Runnable {
     return outputs;
   }
   
-  private void summarize(Ops tf, Context ctx, Operand<Long> step, Operand<Float> var) {
-    Constant<Integer> axes = axesOf(tf, var);
-    Mean<Float> mean = tf.math.mean(var, axes);
+  private void summarize(Ops tf, Context ctx, Operand<TInt64> step, Operand<TFloat32> var) {
+    Constant<TInt32> axes = axesOf(tf, var);
+    Mean<TFloat32> mean = tf.math.mean(var, axes);
     ctx.summaries.add(WriteScalarSummary.create(tf.scope(),
         ctx.summaryWriter, 
         step, 
@@ -235,22 +240,22 @@ public class MnistWithSummaries implements Runnable {
     ).op());
   }
   
-  private Operand<Float> crossEntropy(Ops tf, Operand<Float> labels, Operand<Float> logits) {
+  private Operand<TFloat32> crossEntropy(Ops tf, Operand<TFloat32> labels, Operand<TFloat32> logits) {
       return tf.math.mean(tf.math.neg(tf.reduceSum(tf.math.mul(labels, tf.math.log(logits)), constArray(tf, 1))), constArray(tf, 0));
   }
   
-  private void optimize(Ops tf, Context ctx, Operand<Float> loss) {
+  private void optimize(Ops tf, Context ctx, Operand<TFloat32> loss) {
     Gradients gradients = tf.gradients(loss, ctx.variables);
-    Constant<Float> alpha = tf.constant(LEARNING_RATE);
+    Constant<TFloat32> alpha = tf.constant(LEARNING_RATE);
     for (int i = 0; i < ctx.variables.size(); ++i) {
       ctx.trainingTargets.add(tf.train.applyGradientDescent(ctx.variables.get(i), alpha, gradients.dy(i)));
     }
   }
   
-  private Operand<Float> computeAccuracy(Ops tf, Context ctx, Operand<Long> step, Operand<Float> labels, Operand<Float> logits) {
-    Operand<Long> predicted = tf.math.argMax(logits, tf.constant(1));
-    Operand<Long> expected = tf.math.argMax(labels, tf.constant(1));
-    Operand<Float> accuracy = tf.math.mean(tf.dtypes.cast(tf.math.equal(predicted, expected), Float.class), constArray(tf, 0));
+  private Operand<TFloat32> computeAccuracy(Ops tf, Context ctx, Operand<TInt64> step, Operand<TFloat32> labels, Operand<TFloat32> logits) {
+    Operand<TInt64> predicted = tf.math.argMax(logits, tf.constant(1));
+    Operand<TInt64> expected = tf.math.argMax(labels, tf.constant(1));
+    Operand<TFloat32> accuracy = tf.math.mean(tf.dtypes.cast(tf.math.equal(predicted, expected), TFloat32.DTYPE), constArray(tf, 0));
     ctx.trainingTargets.add(accuracy);
     ctx.summaries.add(WriteScalarSummary.create(tf.scope(),
         ctx.summaryWriter, 
@@ -262,17 +267,17 @@ public class MnistWithSummaries implements Runnable {
   }
   
   // Helper to return axes of a tensor as an array
-  private static Constant<Integer> axesOf(Ops tf, Operand<?> tensor) {
+  private static Constant<TInt32> axesOf(Ops tf, Operand<?> tensor) {
     return tf.constant(IntStream.range(0, tensor.asOutput().shape().numDimensions()).toArray());
   }
   
   // Helper to create a name constant under current scope prefix
-  private static Constant<String> tag(Ops tf, String name) {
+  private static Constant<TString> tag(Ops tf, String name) {
     return tf.constant(tf.scope().makeOpName(name));
   }
 
   // Helper that converts a single integer into an array
-  private Operand<Integer> constArray(Ops tf, int... i) {
+  private Operand<TInt32> constArray(Ops tf, int... i) {
     return tf.constant(i);
   }
 }

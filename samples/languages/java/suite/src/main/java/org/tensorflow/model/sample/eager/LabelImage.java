@@ -32,6 +32,7 @@ import org.tensorflow.Tensor;
 import org.tensorflow.TensorFlow;
 import org.tensorflow.op.Ops;
 import org.tensorflow.op.image.DecodeJpeg;
+import org.tensorflow.types.TFloat32;
 
 /** Sample use of the TensorFlow Java API to label images using a pre-trained model. */
 public class LabelImage {
@@ -64,7 +65,7 @@ public class LabelImage {
         readAllLinesOrExit(Paths.get(modelDir, "imagenet_comp_graph_label_strings.txt"));
     byte[] imageBytes = readAllBytesOrExit(Paths.get(imageFile));
 
-    Tensor<Float> image = normalizeImage(imageBytes);
+    Tensor<TFloat32> image = normalizeImage(imageBytes);
     float[] labelProbabilities = executeInceptionGraph(graphDef, image);
     int bestLabelIdx = maxIndex(labelProbabilities);
     System.out.println(
@@ -73,7 +74,7 @@ public class LabelImage {
             labelProbabilities[bestLabelIdx] * 100f));
   }
 
-  private static Tensor<Float> normalizeImage(byte[] imageBytes) {
+  private static Tensor<TFloat32> normalizeImage(byte[] imageBytes) {
     // Normalize image eagerly
     try (EagerSession session = EagerSession.create()) {
       Ops tf = Ops.create(session);
@@ -89,28 +90,28 @@ public class LabelImage {
       final float mean = 117f;
       final float scale = 1f;
       
-      final Operand<Float> decodedImage = 
-          tf.dtypes.cast(tf.image.decodeJpeg(tf.constant(imageBytes), DecodeJpeg.channels(3L)), Float.class);
+      final Operand<TFloat32> decodedImage =
+          tf.dtypes.cast(tf.image.decodeJpeg(tf.constant(imageBytes), DecodeJpeg.channels(3L)), TFloat32.DTYPE);
 
-      final Operand<Float> resizedImage =
+      final Operand<TFloat32> resizedImage =
           tf.image.resizeBilinear(tf.expandDims(decodedImage, tf.constant(0)), tf.constant(new int[] {H, W}));
       
-      final Operand<Float> normalizedImage =
+      final Operand<TFloat32> normalizedImage =
           tf.math.div(tf.math.sub(resizedImage, tf.constant(mean)), tf.constant(scale));
       
       return normalizedImage.asOutput().tensor();
     }
   }
 
-  private static float[] executeInceptionGraph(byte[] graphDef, Tensor<Float> image) {
+  private static float[] executeInceptionGraph(byte[] graphDef, Tensor<TFloat32> image) {
     try (Graph g = new Graph()) {
       g.importGraphDef(graphDef);
       try (Session s = new Session(g);
           // Generally, there may be multiple output tensors, all of them must be closed to prevent resource leaks.
-          Tensor<Float> result =
-              s.runner().feed("input", image).fetch("output").run().get(0).expect(Float.class)) {
-        final long[] rshape = result.shape();
-        if (result.numDimensions() != 2 || rshape[0] != 1) {
+          Tensor<TFloat32> result =
+              s.runner().feed("input", image).fetch("output").run().get(0).expect(TFloat32.DTYPE)) {
+        final long[] rshape = result.shape().asArray();
+        if (result.shape().numDimensions() != 2 || rshape[0] != 1) {
           throw new RuntimeException(
               String.format(
                   "Expected model to produce a [1 N] shaped tensor where N is the number of labels, instead it produced one with shape %s",
